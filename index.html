@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Walking Speed Tracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+
+        #speed {
+            font-size: 2em;
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 1em;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Walking Speed Tracker</h1>
+    <p>Click the button below to start tracking your walking speed.</p>
+    <button id="startBtn">Start Tracking Speed</button>
+    <button id="stopBtn" disabled>Stop Tracking</button>
+    <p id="speed">Speed: 0 m/s</p>
+
+    <script>
+        let watchID;
+        let previousPosition = null;
+
+        // Function to calculate speed
+        function calculateSpeed(currentPosition) {
+            if (previousPosition) {
+                // Calculate distance between previous and current positions
+                const distance = getDistance(
+                    previousPosition.coords.latitude,
+                    previousPosition.coords.longitude,
+                    currentPosition.coords.latitude,
+                    currentPosition.coords.longitude
+                );
+
+                // Calculate time difference in seconds
+                const timeElapsed = (currentPosition.timestamp - previousPosition.timestamp) / 1000;
+
+                // Calculate speed in m/s
+                const speed = distance / timeElapsed;
+                document.getElementById('speed').textContent = `Speed: ${speed.toFixed(2)} m/s`;
+            }
+
+            // Update the previous position
+            previousPosition = currentPosition;
+        }
+
+        // Function to get distance between two coordinates in meters
+        function getDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371000; // Radius of the Earth in meters
+            const dLat = (lat2 - lat1) * (Math.PI / 180);
+            const dLon = (lon2 - lon1) * (Math.PI / 180);
+            const a =
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c; // Distance in meters
+        }
+
+// Start tracking speed
+document.getElementById('startBtn').addEventListener('click', () => {
+    if (navigator.permissions) {
+        // Manually request permission using Permissions API
+        navigator.permissions.query({ name: 'geolocation' }).then(function(result) {
+            if (result.state === 'granted') {
+                // If permission is already granted, start watching the position
+                startGeolocationTracking();
+            } else if (result.state === 'prompt') {
+                // Prompt the user for permission
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        // Permission granted; start tracking
+                        startGeolocationTracking();
+                    },
+                    (error) => {
+                        showError(error);
+                    }
+                );
+            } else if (result.state === 'denied') {
+                // If permission is denied, show an alert
+                alert('Location access is denied. Please allow location access in your browser settings.');
+            }
+        }).catch((error) => {
+            console.error('Error querying geolocation permission:', error);
+            alert('Error querying geolocation permission. Please check your browser settings.');
+        });
+    } else {
+        // Fallback in case Permissions API is not available
+        startGeolocationTracking();
+    }
+});
+
+// Function to start geolocation tracking
+function startGeolocationTracking() {
+    watchID = navigator.geolocation.watchPosition(calculateSpeed, showError, {
+        enableHighAccuracy: true,
+        maximumAge: 1000,
+        timeout: 5000
+    });
+    document.getElementById('startBtn').disabled = true;
+    document.getElementById('stopBtn').disabled = false;
+}
+
+        // Stop tracking speed
+        document.getElementById('stopBtn').addEventListener('click', () => {
+            if (watchID) {
+                navigator.geolocation.clearWatch(watchID);
+                watchID = null;
+                previousPosition = null;
+                document.getElementById('speed').textContent = 'Speed: 0 m/s';
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+            }
+        });
+
+
+
+
+
+
+        // Show error if there's an issue with geolocation
+        function showError(error) {
+            switch (error.code) {
+                case error.PERMISSION_DENIED:
+                    alert("User denied the request for Geolocation.");
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    alert("Location information is unavailable.");
+                    break;
+                case error.TIMEOUT:
+                    alert("The request to get user location timed out.");
+                    break;
+                case error.UNKNOWN_ERROR:
+                    alert("An unknown error occurred.");
+                    break;
+            }
+        }
+    </script>
+
+</body>
+</html>
