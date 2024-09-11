@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta http-equiv="X-UA-Compatible=IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Walking Speed and Step Tracker</title>
     <style>
@@ -13,7 +13,7 @@
             background-color: #f0f0f0;
         }
 
-        #speed, #steps {
+        #speed, #steps, #spm {
             font-size: 2em;
             margin-top: 20px;
         }
@@ -42,15 +42,17 @@
     <button id="stopBtn" disabled>Stop Tracking</button>
     <p id="speed">Speed: 0 m/s</p>
     <p id="steps">Steps: 0</p>
+    <p id="spm">Steps per Minute: 0</p>
 
     <script>
         let watchID;
         let previousPosition = null;
         let speedReadings = [];
         let stepCount = 0;
+        let stepTimestamps = [];
         const MAX_READINGS = 5; // Number of readings to average
+        const stepThreshold = 1.2; // Threshold for detecting steps (may need adjustment based on device)
         let lastAcceleration = { x: 0, y: 0, z: 0 };
-        let stepThreshold = 1.2; // Threshold for detecting steps (may need adjustment based on device)
 
         // Function to calculate speed with smoothing
         function calculateSpeed(currentPosition) {
@@ -168,6 +170,10 @@
 
             // Stop step counting
             window.removeEventListener('devicemotion', handleMotion);
+            stepCount = 0;
+            stepTimestamps = [];
+            document.getElementById('steps').textContent = 'Steps: 0';
+            document.getElementById('spm').textContent = 'Steps per Minute: 0';
         });
 
         // Handle motion events for step counting
@@ -181,6 +187,17 @@
             if (deltaX + deltaY + deltaZ > stepThreshold) {
                 stepCount++;
                 document.getElementById('steps').textContent = `Steps: ${stepCount}`;
+                
+                // Record the timestamp of each step
+                const currentTime = Date.now();
+                stepTimestamps.push(currentTime);
+
+                // Remove timestamps older than 60 seconds
+                stepTimestamps = stepTimestamps.filter(timestamp => currentTime - timestamp < 60000);
+
+                // Calculate steps per minute
+                const stepsPerMinute = stepTimestamps.length;
+                document.getElementById('spm').textContent = `Steps per Minute: ${stepsPerMinute}`;
             }
 
             // Update the last acceleration values
