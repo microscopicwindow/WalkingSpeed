@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Walking Speed Trackerr</title>
+    <title>Walking Speed and Step Tracker</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -13,7 +13,7 @@
             background-color: #f0f0f0;
         }
 
-        #speed {
+        #speed, #steps {
             font-size: 2em;
             margin-top: 20px;
         }
@@ -36,22 +36,25 @@
 </head>
 <body>
 
-    <h1>Walking Speed Tracker</h1>
-    <p>Click the button below to start tracking your walking speed.</p>
-    <button id="startBtn">Start Tracking Speed</button>
+    <h1>Walking Speed and Step Tracker</h1>
+    <p>Click the button below to start tracking your walking speed and steps.</p>
+    <button id="startBtn">Start Tracking</button>
     <button id="stopBtn" disabled>Stop Tracking</button>
     <p id="speed">Speed: 0 m/s</p>
+    <p id="steps">Steps: 0</p>
 
     <script>
         let watchID;
         let previousPosition = null;
         let speedReadings = [];
+        let stepCount = 0;
         const MAX_READINGS = 5; // Number of readings to average
+        let lastAcceleration = { x: 0, y: 0, z: 0 };
+        let stepThreshold = 1.2; // Threshold for detecting steps (may need adjustment based on device)
 
         // Function to calculate speed with smoothing
         function calculateSpeed(currentPosition) {
             if (previousPosition) {
-                // Calculate distance between previous and current positions
                 const distance = getDistance(
                     previousPosition.coords.latitude,
                     previousPosition.coords.longitude,
@@ -59,36 +62,29 @@
                     currentPosition.coords.longitude
                 );
 
-                // Calculate time difference in seconds
                 const timeElapsed = (currentPosition.timestamp - previousPosition.timestamp) / 1000;
-
-                // Calculate speed in m/s
                 let speed = distance / timeElapsed;
 
-                // Filter unrealistic jumps (e.g., sudden high speeds)
                 if (speed > 10) { // Assume speeds above 10 m/s are unrealistic for walking
                     console.log(`Filtered unrealistic speed: ${speed} m/s`);
-                    return; // Skip this update
+                    return;
                 }
 
-                // Add speed to readings array and maintain only recent readings
                 speedReadings.push(speed);
                 if (speedReadings.length > MAX_READINGS) {
-                    speedReadings.shift(); // Remove the oldest reading
+                    speedReadings.shift();
                 }
 
-                // Calculate average speed
                 const averageSpeed = speedReadings.reduce((a, b) => a + b, 0) / speedReadings.length;
                 document.getElementById('speed').textContent = `Speed: ${averageSpeed.toFixed(2)} m/s`;
             }
 
-            // Update the previous position
             previousPosition = currentPosition;
         }
 
         // Function to get distance between two coordinates in meters
         function getDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371000; // Radius of the Earth in meters
+            const R = 6371000;
             const dLat = (lat2 - lat1) * (Math.PI / 180);
             const dLon = (lon2 - lon1) * (Math.PI / 180);
             const a =
@@ -96,7 +92,7 @@
                 Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
                 Math.sin(dLon / 2) * Math.sin(dLon / 2);
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            return R * c; // Distance in meters
+            return R * c;
         }
 
         // Error handling function
@@ -117,10 +113,10 @@
             }
         }
 
-        // Start tracking speed
+        // Start tracking speed and steps
         document.getElementById('startBtn').addEventListener('click', () => {
             if (navigator.permissions) {
-                navigator.permissions.query({ name: 'geolocation' }).then(function(result) {
+                navigator.permissions.query({ name: 'geolocation' }).then(function (result) {
                     if (result.state === 'granted') {
                         startGeolocationTracking();
                     } else if (result.state === 'prompt') {
@@ -142,6 +138,9 @@
             } else {
                 startGeolocationTracking();
             }
+
+            // Start step counting
+            window.addEventListener('devicemotion', handleMotion);
         });
 
         // Function to start geolocation tracking
@@ -155,18 +154,38 @@
             document.getElementById('stopBtn').disabled = false;
         }
 
-        // Stop tracking speed
+        // Stop tracking speed and steps
         document.getElementById('stopBtn').addEventListener('click', () => {
             if (watchID) {
                 navigator.geolocation.clearWatch(watchID);
                 watchID = null;
                 previousPosition = null;
-                speedReadings = []; // Clear readings
+                speedReadings = [];
                 document.getElementById('speed').textContent = 'Speed: 0 m/s';
                 document.getElementById('startBtn').disabled = false;
                 document.getElementById('stopBtn').disabled = true;
             }
+
+            // Stop step counting
+            window.removeEventListener('devicemotion', handleMotion);
         });
+
+        // Handle motion events for step counting
+        function handleMotion(event) {
+            const acceleration = event.accelerationIncludingGravity;
+            const deltaX = Math.abs(acceleration.x - lastAcceleration.x);
+            const deltaY = Math.abs(acceleration.y - lastAcceleration.y);
+            const deltaZ = Math.abs(acceleration.z - lastAcceleration.z);
+
+            // Check if combined movement exceeds the step threshold
+            if (deltaX + deltaY + deltaZ > stepThreshold) {
+                stepCount++;
+                document.getElementById('steps').textContent = `Steps: ${stepCount}`;
+            }
+
+            // Update the last acceleration values
+            lastAcceleration = acceleration;
+        }
     </script>
 
 </body>
