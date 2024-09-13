@@ -37,7 +37,7 @@
 <body>
 
     <h1>Step Counter</h1>
-    <p>Click the button below to start tracking your steps.</p>
+    <p>Press the button below to start tracking your steps.</p>
     <button id="startBtn">Start Tracking</button>
     <button id="stopBtn" disabled>Stop Tracking</button>
     <p id="steps">Steps: 0</p>
@@ -45,7 +45,7 @@
     <script>
         let stepCount = 0;
         let lastAcceleration = { x: 0, y: 0, z: 0 };
-        const stepThreshold = 1.2; // Threshold for detecting steps (may need adjustment based on device)
+        const stepThreshold = 1.7; // Threshold for detecting steps (may need adjustment based on device)
 
         // Start tracking steps
         document.getElementById('startBtn').addEventListener('click', () => {
