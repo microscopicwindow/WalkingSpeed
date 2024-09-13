@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible=IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Walking Speed and Step Tracker</title>
+    <title>Step Counter</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -13,7 +13,7 @@
             background-color: #f0f0f0;
         }
 
-        #speed, #steps, #spm {
+        #steps {
             font-size: 2em;
             margin-top: 20px;
         }
@@ -36,144 +36,33 @@
 </head>
 <body>
 
-    <h1>Walking Speed and Step Tracker</h1>
-    <p>CClick the button below to start tracking your walking speed and steps.</p>
+    <h1>Step Counter</h1>
+    <p>Click the button below to start tracking your steps.</p>
     <button id="startBtn">Start Tracking</button>
     <button id="stopBtn" disabled>Stop Tracking</button>
-    <p id="speed">Speed: 0 m/s</p>
     <p id="steps">Steps: 0</p>
-    <p id="spm">Steps per Minute: 0</p>
 
     <script>
-        let watchID;
-        let previousPosition = null;
-        let speedReadings = [];
         let stepCount = 0;
-        let stepTimestamps = [];
-        const MAX_READINGS = 5; // Number of readings to average
-        const stepThreshold = 1.2; // Threshold for detecting steps (may need adjustment based on device)
         let lastAcceleration = { x: 0, y: 0, z: 0 };
+        const stepThreshold = 1.2; // Threshold for detecting steps (may need adjustment based on device)
 
-        // Function to calculate speed with smoothing
-        function calculateSpeed(currentPosition) {
-            if (previousPosition) {
-                const distance = getDistance(
-                    previousPosition.coords.latitude,
-                    previousPosition.coords.longitude,
-                    currentPosition.coords.latitude,
-                    currentPosition.coords.longitude
-                );
-
-                const timeElapsed = (currentPosition.timestamp - previousPosition.timestamp) / 1000;
-                let speed = distance / timeElapsed;
-
-                if (speed > 10) { // Assume speeds above 10 m/s are unrealistic for walking
-                    console.log(`Filtered unrealistic speed: ${speed} m/s`);
-                    return;
-                }
-
-                speedReadings.push(speed);
-                if (speedReadings.length > MAX_READINGS) {
-                    speedReadings.shift();
-                }
-
-                const averageSpeed = speedReadings.reduce((a, b) => a + b, 0) / speedReadings.length;
-                document.getElementById('speed').textContent = `Speed: ${averageSpeed.toFixed(2)} m/s`;
-            }
-
-            previousPosition = currentPosition;
-        }
-
-        // Function to get distance between two coordinates in meters
-        function getDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371000;
-            const dLat = (lat2 - lat1) * (Math.PI / 180);
-            const dLon = (lon2 - lon1) * (Math.PI / 180);
-            const a =
-                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-                Math.sin(dLon / 2) * Math.sin(dLon / 2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            return R * c;
-        }
-
-        // Error handling function
-        function showError(error) {
-            switch (error.code) {
-                case error.PERMISSION_DENIED:
-                    alert("User denied the request for Geolocation.");
-                    break;
-                case error.POSITION_UNAVAILABLE:
-                    alert("Location information is unavailable.");
-                    break;
-                case error.TIMEOUT:
-                    alert("The request to get user location timed out.");
-                    break;
-                case error.UNKNOWN_ERROR:
-                    alert("An unknown error occurred.");
-                    break;
-            }
-        }
-
-        // Start tracking speed and steps
+        // Start tracking steps
         document.getElementById('startBtn').addEventListener('click', () => {
-            if (navigator.permissions) {
-                navigator.permissions.query({ name: 'geolocation' }).then(function (result) {
-                    if (result.state === 'granted') {
-                        startGeolocationTracking();
-                    } else if (result.state === 'prompt') {
-                        navigator.geolocation.getCurrentPosition(
-                            (position) => {
-                                startGeolocationTracking();
-                            },
-                            (error) => {
-                                showError(error);
-                            }
-                        );
-                    } else if (result.state === 'denied') {
-                        alert('Location access is denied. Please allow location access in your browser settings.');
-                    }
-                }).catch((error) => {
-                    console.error('Error querying geolocation permission:', error);
-                    alert('Error querying geolocation permission. Please check your browser settings.');
-                });
-            } else {
-                startGeolocationTracking();
-            }
-
             // Start step counting
             window.addEventListener('devicemotion', handleMotion);
-        });
-
-        // Function to start geolocation tracking
-        function startGeolocationTracking() {
-            watchID = navigator.geolocation.watchPosition(calculateSpeed, showError, {
-                enableHighAccuracy: true,
-                maximumAge: 1000,
-                timeout: 5000
-            });
             document.getElementById('startBtn').disabled = true;
             document.getElementById('stopBtn').disabled = false;
-        }
+        });
 
-        // Stop tracking speed and steps
+        // Stop tracking steps
         document.getElementById('stopBtn').addEventListener('click', () => {
-            if (watchID) {
-                navigator.geolocation.clearWatch(watchID);
-                watchID = null;
-                previousPosition = null;
-                speedReadings = [];
-                document.getElementById('speed').textContent = 'Speed: 0 m/s';
-                document.getElementById('startBtn').disabled = false;
-                document.getElementById('stopBtn').disabled = true;
-            }
-
             // Stop step counting
             window.removeEventListener('devicemotion', handleMotion);
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
             stepCount = 0;
-            stepTimestamps = [];
             document.getElementById('steps').textContent = 'Steps: 0';
-            document.getElementById('spm').textContent = 'Steps per Minute: 0';
         });
 
         // Handle motion events for step counting
@@ -187,17 +76,6 @@
             if (deltaX + deltaY + deltaZ > stepThreshold) {
                 stepCount++;
                 document.getElementById('steps').textContent = `Steps: ${stepCount}`;
-                
-                // Record the timestamp of each step
-                const currentTime = Date.now();
-                stepTimestamps.push(currentTime);
-
-                // Remove timestamps older than 60 seconds
-                stepTimestamps = stepTimestamps.filter(timestamp => currentTime - timestamp < 60000);
-
-                // Calculate steps per minute
-                const stepsPerMinute = stepTimestamps.length;
-                document.getElementById('spm').textContent = `Steps per Minute: ${stepsPerMinute}`;
             }
 
             // Update the last acceleration values
